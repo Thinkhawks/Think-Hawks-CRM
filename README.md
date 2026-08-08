@@ -1,36 +1,39 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Think Hawks CRM
 
-## Getting Started
+Internal CRM for Think Hawks — contacts, email automation, calling with
+recording, and SMS/WhatsApp messaging in one place.
 
-First, run the development server:
+**Stack:** Next.js (App Router) · TypeScript · Tailwind v4 · Supabase
+(Postgres + Auth) · Resend (email) · Twilio (voice + messaging)
+
+## Features
+
+- **Contacts** — save leads/clients with tags, notes, and a unified activity
+  timeline (`/dashboard/contacts`)
+- **Email automation** — send from a contact's page via Resend, with
+  sent/delivered/opened/bounced tracked automatically via webhook
+- **Calling + call recording** — click-to-call from a contact's page; Twilio
+  rings you first, bridges to the contact, and records the call
+- **Messaging** — two-way SMS and WhatsApp per contact, plus a shared inbox
+  at `/dashboard/messages`
+
+## First-time setup
+
+Nothing here works until you connect Supabase/Resend/Twilio — **read
+[SETUP.md](./SETUP.md) first**, it walks through creating each account and
+where every key goes. `/dashboard/settings` shows live status of what's
+configured once the app is running.
+
+## Local development
 
 ```bash
+npm install
+cp .env.example .env.local   # then fill in what you have — see SETUP.md
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Database schema
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+[`supabase/schema.sql`](./supabase/schema.sql) — run once in your Supabase
+project's SQL Editor. Defines `contacts`, `activities`, `calls`, `messages`,
+`email_events`, with row-level security scoped to signed-in users.
