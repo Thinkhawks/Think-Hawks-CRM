@@ -81,8 +81,11 @@ to the contact and recording from that point on. See `/api/calls/start` and
 
 ## 4. Deploying
 
-Any Next.js host works (Vercel is the path of least resistance since this
-was scaffolded with `create-next-app`). Set every variable from
+Deploying to Hostinger (Business plan)? See [DEPLOY-HOSTINGER.md](./DEPLOY-HOSTINGER.md)
+for the exact hPanel steps.
+
+Otherwise, any Next.js host works (Vercel is the path of least resistance
+since this was scaffolded with `create-next-app`). Set every variable from
 `.env.example` in your host's environment variable settings, then deploy.
 After the first deploy, go back and fill in `NEXT_PUBLIC_BASE_URL` with the
 real deployed URL and redeploy — Twilio needs it to be correct.
