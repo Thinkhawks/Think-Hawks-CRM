@@ -21,7 +21,6 @@ export default function MessagesPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [contactPhone, setContactPhone] = useState<string | null>(null);
   const [body, setBody] = useState("");
-  const [channel, setChannel] = useState<MessageChannel>("sms");
   const [sending, setSending] = useState(false);
 
   const loadThreads = useCallback(async () => {
@@ -54,7 +53,7 @@ export default function MessagesPage() {
     await fetch("/api/messages/send", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ contact_id: activeId, body, channel }),
+      body: JSON.stringify({ contact_id: activeId, body }),
     });
     setBody("");
     setSending(false);
@@ -106,20 +105,6 @@ export default function MessagesPage() {
           <>
             <div className="flex items-center justify-between border-b border-border bg-white px-5 py-4">
               <p className="text-sm font-medium text-secondary">{contactPhone}</p>
-              <div className="flex gap-1.5">
-                {(["sms", "whatsapp"] as MessageChannel[]).map((c) => (
-                  <button
-                    key={c}
-                    onClick={() => setChannel(c)}
-                    className={cn(
-                      "rounded-full px-3 py-1 text-xs font-medium capitalize cursor-pointer",
-                      channel === c ? "bg-primary text-white" : "bg-black/5 text-secondary",
-                    )}
-                  >
-                    {c}
-                  </button>
-                ))}
-              </div>
             </div>
 
             <div className="flex-1 space-y-2 overflow-y-auto p-5">
@@ -154,7 +139,7 @@ export default function MessagesPage() {
               <input
                 value={body}
                 onChange={(e) => setBody(e.target.value)}
-                placeholder={`Write a ${channel} message…`}
+                placeholder="Write a message…"
                 className="h-10 flex-1 rounded-lg border border-border bg-white px-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
               />
               <Button type="submit" size="icon" disabled={sending}>

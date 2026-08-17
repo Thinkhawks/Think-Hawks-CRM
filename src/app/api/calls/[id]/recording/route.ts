@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { telnyxRequest } from "@/lib/telnyx";
 
 /**
- * Streams a call recording from Twilio through our own auth gate, so we never
- * hand out the raw Twilio-hosted URL (which needs Twilio Basic Auth anyway)
- * or expose Twilio credentials to the browser.
+ * Streams a call recording from Telnyx through our own auth gate, so we never
+ * expose a raw recording URL to the browser. Telnyx's download URLs are
+ * presigned and expire, so we re-resolve a fresh one from the recording_id on
+ * every request rather than trusting the URL we cached at webhook time.
  */
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -16,25 +18,31 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
 
   const { data: call } = await supabase
     .from("calls")
-    .select("recording_url")
+    .select("recording_id, recording_url")
     .eq("id", id)
     .single();
 
-  if (!call?.recording_url) {
+  if (!call?.recording_id && !call?.recording_url) {
     return NextResponse.json({ error: "No recording available" }, { status: 404 });
   }
 
-  const sid = process.env.TWILIO_ACCOUNT_SID;
-  const token = process.env.TWILIO_AUTH_TOKEN;
-  if (!sid || !token) {
-    return NextResponse.json({ error: "Twilio isn't configured" }, { status: 503 });
+  let recordingUrl = call.recording_url;
+  if (call.recording_id) {
+    try {
+      const fresh = await telnyxRequest<{ data: { download_urls?: { mp3?: string } } }>(
+        `/recordings/${call.recording_id}`,
+      );
+      recordingUrl = fresh.data.download_urls?.mp3 ?? recordingUrl;
+    } catch {
+      // Fall back to the cached URL below — it may still be valid.
+    }
   }
 
-  const auth = Buffer.from(`${sid}:${token}`).toString("base64");
-  const upstream = await fetch(call.recording_url, {
-    headers: { Authorization: `Basic ${auth}` },
-  });
+  if (!recordingUrl) {
+    return NextResponse.json({ error: "Recording not available yet" }, { status: 502 });
+  }
 
+  const upstream = await fetch(recordingUrl);
   if (!upstream.ok || !upstream.body) {
     return NextResponse.json({ error: "Recording not available yet" }, { status: 502 });
   }

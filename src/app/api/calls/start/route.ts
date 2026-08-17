@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { getTwilioClient, TWILIO_NUMBER, getBaseUrl } from "@/lib/twilio";
+import { dial, getBaseUrl, TELNYX_NUMBER } from "@/lib/telnyx";
 import { toE164 } from "@/lib/utils";
 
 const schema = z.object({
@@ -32,10 +32,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "This contact has no phone on file" }, { status: 400 });
   }
 
-  const token = process.env.TWILIO_WEBHOOK_TOKEN;
-  if (!token || !TWILIO_NUMBER) {
+  const token = process.env.TELNYX_WEBHOOK_TOKEN;
+  if (!token || !TELNYX_NUMBER) {
     return NextResponse.json(
-      { error: "Calling isn't configured yet — see SETUP.md for Twilio setup." },
+      { error: "Calling isn't configured yet — see SETUP.md for Telnyx setup." },
       { status: 503 },
     );
   }
@@ -53,36 +53,44 @@ export async function POST(request: NextRequest) {
   const agentPhoneE164 = toE164(agent_phone);
   const contactPhoneE164 = toE164(contact.phone);
 
-  const voiceUrl = new URL(`${baseUrl}/api/calls/voice`);
-  voiceUrl.searchParams.set("token", token);
-  voiceUrl.searchParams.set("contactPhone", contactPhoneE164);
-  voiceUrl.searchParams.set("contactId", contact_id);
-
-  const statusUrl = new URL(`${baseUrl}/api/webhooks/twilio/call-status`);
-  statusUrl.searchParams.set("token", token);
-
-  try {
-    const client = getTwilioClient();
-    const call = await client.calls.create({
-      to: agentPhoneE164,
-      from: TWILIO_NUMBER,
-      url: voiceUrl.toString(),
-      statusCallback: statusUrl.toString(),
-      statusCallbackEvent: ["initiated", "ringing", "answered", "completed"],
-      statusCallbackMethod: "POST",
-    });
-
-    await supabase.from("calls").insert({
+  const { data: call } = await supabase
+    .from("calls")
+    .insert({
       contact_id,
-      twilio_call_sid: call.sid,
       direction: "outbound",
       status: "initiated",
       agent_phone: agentPhoneE164,
       contact_phone: contactPhoneE164,
+    })
+    .select("id")
+    .single();
+
+  if (!call) {
+    return NextResponse.json({ error: "Couldn't start the call" }, { status: 500 });
+  }
+
+  const webhookUrl = new URL(`${baseUrl}/api/webhooks/telnyx/voice`);
+  webhookUrl.searchParams.set("token", token);
+
+  try {
+    const leg = await dial({
+      to: agentPhoneE164,
+      from: TELNYX_NUMBER,
+      webhookUrl: webhookUrl.toString(),
+      clientState: { role: "agent", callRowId: call.id },
     });
 
-    return NextResponse.json({ ok: true, sid: call.sid });
+    await supabase
+      .from("calls")
+      .update({
+        telnyx_call_control_id: leg.call_control_id,
+        telnyx_call_session_id: leg.call_session_id,
+      })
+      .eq("id", call.id);
+
+    return NextResponse.json({ ok: true, id: call.id });
   } catch (err) {
+    await supabase.from("calls").update({ status: "failed" }).eq("id", call.id);
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Couldn't start the call" },
       { status: 502 },

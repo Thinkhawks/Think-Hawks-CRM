@@ -58,7 +58,7 @@ export function CallDialog({
             onChange={(e) => setAgentPhone(e.target.value)}
           />
           <p className="mt-1 text-xs text-muted">
-            Twilio calls this number, then bridges you to the contact and records the
+            Telnyx calls this number, then bridges you to the contact and records the
             conversation.
           </p>
         </div>

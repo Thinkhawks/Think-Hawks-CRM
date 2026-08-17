@@ -7,12 +7,12 @@ const CHECKS = [
   { key: "SUPABASE_SERVICE_ROLE_KEY", label: "Supabase service role key (webhooks)" },
   { key: "RESEND_API_KEY", label: "Resend API key (email sending)" },
   { key: "RESEND_WEBHOOK_SECRET", label: "Resend webhook secret (delivery/open tracking)" },
-  { key: "TWILIO_ACCOUNT_SID", label: "Twilio Account SID" },
-  { key: "TWILIO_AUTH_TOKEN", label: "Twilio Auth Token" },
-  { key: "TWILIO_PHONE_NUMBER", label: "Twilio phone number (calling + SMS)" },
-  { key: "TWILIO_WHATSAPP_NUMBER", label: "Twilio WhatsApp number (optional)" },
-  { key: "TWILIO_WEBHOOK_TOKEN", label: "Twilio webhook shared secret" },
-  { key: "NEXT_PUBLIC_BASE_URL", label: "Public base URL (for Twilio callbacks)" },
+  { key: "TELNYX_API_KEY", label: "Telnyx API key" },
+  { key: "TELNYX_CONNECTION_ID", label: "Telnyx Call Control App ID" },
+  { key: "TELNYX_PHONE_NUMBER", label: "Telnyx phone number (calling + SMS)" },
+  { key: "TELNYX_FORWARD_TO_NUMBER", label: "Number to ring for inbound calls" },
+  { key: "TELNYX_WEBHOOK_TOKEN", label: "Telnyx webhook shared secret" },
+  { key: "NEXT_PUBLIC_BASE_URL", label: "Public base URL (for Telnyx callbacks)" },
 ];
 
 export default function SettingsPage() {

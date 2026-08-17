@@ -49,31 +49,33 @@ create table if not exists email_events (
 create index if not exists email_events_contact_idx on email_events (contact_id);
 create index if not exists email_events_resend_id_idx on email_events (resend_email_id);
 
--- ─── Calling + recording (Twilio Voice) ─────────────────────────────────────
+-- ─── Calling + recording (Telnyx Call Control) ──────────────────────────────
 
 create table if not exists calls (
   id uuid primary key default gen_random_uuid(),
   contact_id uuid references contacts (id) on delete set null,
-  twilio_call_sid text unique,
+  telnyx_call_control_id text,
+  telnyx_call_session_id text unique,
   direction text not null default 'outbound' check (direction in ('outbound', 'inbound')),
   status text not null default 'initiated',
   agent_phone text,
   contact_phone text,
   duration_seconds int,
+  started_at timestamptz,
   recording_url text,
-  recording_sid text,
+  recording_id text,
   created_at timestamptz not null default now()
 );
 
 create index if not exists calls_contact_idx on calls (contact_id, created_at desc);
-create index if not exists calls_sid_idx on calls (twilio_call_sid);
+create index if not exists calls_session_idx on calls (telnyx_call_session_id);
 
--- ─── Messaging (Twilio SMS / WhatsApp) ──────────────────────────────────────
+-- ─── Messaging (Telnyx SMS) ──────────────────────────────────────────────────
 
 create table if not exists messages (
   id uuid primary key default gen_random_uuid(),
   contact_id uuid references contacts (id) on delete set null,
-  twilio_message_sid text unique,
+  telnyx_message_id text unique,
   direction text not null check (direction in ('outbound', 'inbound')),
   channel text not null default 'sms' check (channel in ('sms', 'whatsapp')),
   body text,
@@ -82,7 +84,7 @@ create table if not exists messages (
 );
 
 create index if not exists messages_contact_idx on messages (contact_id, created_at);
-create index if not exists messages_sid_idx on messages (twilio_message_sid);
+create index if not exists messages_sid_idx on messages (telnyx_message_id);
 
 -- ─── updated_at trigger for contacts ────────────────────────────────────────
 
@@ -101,7 +103,7 @@ create trigger contacts_set_updated_at
 
 -- ─── Row Level Security ──────────────────────────────────────────────────────
 -- Single-tenant agency tool: any signed-in (authenticated) team member has full
--- access. Webhooks (Twilio/Resend) write through the service-role key, which
+-- access. Webhooks (Telnyx/Resend) write through the service-role key, which
 -- bypasses RLS entirely, so they don't need their own policy.
 
 alter table contacts enable row level security;

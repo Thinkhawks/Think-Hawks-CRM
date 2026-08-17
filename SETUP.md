@@ -37,47 +37,53 @@ these are still missing.
    `RESEND_WEBHOOK_SECRET` — this is what proves incoming webhook calls
    really came from Resend and not someone spoofing "opened" events.
 
-## 3. Twilio (calling, call recording, SMS/WhatsApp)
+## 3. Telnyx (calling, call recording, SMS)
 
-There's no fully-free way to call and text real phone numbers — every
-provider bills per minute/message. Twilio was picked because it has no
-monthly minimum (pure pay-as-you-go), gives free trial credit to start, and
-has the best-documented Voice + Recording + Messaging APIs.
+You already have a Telnyx account, API key, and phone number, so this is just
+wiring the portal up to point at this app.
 
-1. Create an account at [twilio.com/try-twilio](https://www.twilio.com/try-twilio)
-   — you get free trial credit automatically.
-2. From the **Console Dashboard**, copy `Account SID` → `TWILIO_ACCOUNT_SID`
-   and `Auth Token` → `TWILIO_AUTH_TOKEN`.
-3. **Phone Numbers → Buy a number** — pick one with Voice + SMS capability.
-   Put it (in `+1...` E.164 format) into `TWILIO_PHONE_NUMBER`.
-   - While on a trial account, Twilio can only call/text numbers you've
-     verified under **Phone Numbers → Verified Caller IDs**. Once you add a
-     few dollars of credit it can reach any number.
-4. Make up a long random string yourself (e.g. run
-   `openssl rand -hex 24` or use a password generator) and set it as both:
-   - `TWILIO_WEBHOOK_TOKEN` in your env vars
-   - nothing else needed — the app appends it to every URL it hands Twilio,
-     so Twilio's callbacks are rejected unless they carry it.
-5. Deploy the app first (see below) so you have a real HTTPS URL, then set
-   `NEXT_PUBLIC_BASE_URL` to that URL and redeploy. Calling won't work on
-   `localhost` — Twilio's servers need to reach your webhook URLs over the
-   public internet.
-6. **Phone Numbers → your number → Messaging → "A message comes in"**: set
-   the webhook to
-   `https://<your-deployed-domain>/api/webhooks/twilio/inbound?token=<TWILIO_WEBHOOK_TOKEN>`,
-   method POST. This is what makes inbound SMS replies show up in
-   `/dashboard/messages` and auto-create a contact if the sender is new.
+1. **API Keys & Tokens** (top-right account menu) → create a key if you don't
+   already have one → `TELNYX_API_KEY`.
+2. **Call Control → Applications → Create Application** (or reuse one):
+   - Give it any name, e.g. "Think Hawks CRM".
+   - **Webhook URL**:
+     `https://<your-deployed-domain>/api/webhooks/telnyx/voice?token=<TELNYX_WEBHOOK_TOKEN>`
+     — make up `TELNYX_WEBHOOK_TOKEN` yourself first (e.g. `openssl rand -hex 24`)
+     and use the same value for both this URL and the env var. Method: POST,
+     format: JSON (the default).
+   - Save it, then copy its **Application ID** → `TELNYX_CONNECTION_ID` (it's
+     used as `connection_id` when the app dials out — Telnyx still calls this
+     a "connection" under the hood even though the portal says "Application").
+3. **Numbers → My Numbers → your number → Voice Settings**: set
+   **Connection/App** to the Call Control Application from step 2. This is
+   what routes both outbound *and inbound* calls through our webhook — the
+   app now answers real inbound calls to this number by ringing whichever
+   phone you put in `TELNYX_FORWARD_TO_NUMBER` and bridging + recording once
+   you pick up.
+4. Put the number itself (E.164, e.g. `+15551234567`) into
+   `TELNYX_PHONE_NUMBER`, and your own cell (also E.164) into
+   `TELNYX_FORWARD_TO_NUMBER` — that's who rings when a client calls your
+   Telnyx number or when the app rings you to bridge an outbound call.
+5. **Messaging → Messaging Profiles → Create profile** (or reuse one):
+   - **Inbound settings → Webhook URL**:
+     `https://<your-deployed-domain>/api/webhooks/telnyx/messaging?token=<TELNYX_WEBHOOK_TOKEN>`
+   - Under the profile's **Numbers** tab, add your Telnyx number so it can
+     send/receive SMS through this profile.
+6. Deploy the app first (see below) so you have a real HTTPS URL, then set
+   `NEXT_PUBLIC_BASE_URL` to that URL and redeploy, then go back and fill in
+   the two webhook URLs above with the real domain instead of a placeholder.
+   Calling and SMS won't work on `localhost` — Telnyx's servers need to reach
+   your webhook URLs over the public internet.
 
-   *(Optional) WhatsApp*: **Messaging → Try it out → Send a WhatsApp
-   message** to get a WhatsApp-enabled sender (sandbox for testing, or apply
-   for a production sender later). Put its number into
-   `TWILIO_WHATSAPP_NUMBER` and point its inbound webhook at the same
-   `/api/webhooks/twilio/inbound` URL.
+No SIP/WebRTC softphone setup is needed — calling works by having Telnyx ring
+your own phone first (you answer like a normal call), then dialing the
+contact and bridging + recording once they pick up. Inbound calls work the
+same way in reverse. See `/api/webhooks/telnyx/voice` if you want to swap
+this later for an in-browser softphone.
 
-No TwiML App or Voice SDK setup is needed — calling works by having Twilio
-ring your own phone first (you answer like a normal call), then bridging you
-to the contact and recording from that point on. See `/api/calls/start` and
-`/api/calls/voice` if you want to swap this later for an in-browser softphone.
+WhatsApp isn't wired up in this pass — it needs its own Meta Business
+verification through Telnyx and can be added later as a separate piece of
+work.
 
 ## 4. Deploying
 
@@ -88,7 +94,7 @@ Otherwise, any Next.js host works (Vercel is the path of least resistance
 since this was scaffolded with `create-next-app`). Set every variable from
 `.env.example` in your host's environment variable settings, then deploy.
 After the first deploy, go back and fill in `NEXT_PUBLIC_BASE_URL` with the
-real deployed URL and redeploy — Twilio needs it to be correct.
+real deployed URL and redeploy — Telnyx needs it to be correct.
 
 ## 5. Local development
 
